@@ -1,117 +1,132 @@
 buildscript {
     repositories {
-        maven { url = 'https://files.minecraftforge.net/maven' }
+        maven {
+            name = "MinecraftForge"
+            url = 'https://files.minecraftforge.net/maven'
+        }
         jcenter()
         mavenCentral()
     }
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
     }
 }
-        
-apply plugin: 'net.minecraftforge.gradle'
-// Only edit below this line, the above code adds and enables the necessary things for Forge to be setup.
+
+apply plugin: 'net.minecraftforge.gradle.forge'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
-version = '1.0'
-group = 'com.yourname.modid' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
-archivesBaseName = 'modid'
+apply plugin: 'java'
+apply plugin: 'idea'
 
-sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
-
-minecraft {
-    // The mappings can be changed at any time, and must be in the following format.
-    // snapshot_YYYYMMDD   Snapshot are built nightly.
-    // stable_#            Stables are built at the discretion of the MCP team.
-    // Use non-default mappings at your own risk. they may not always work.
-    // Simply re-run your setup task after changing the mappings to update your workspace.
-    //mappings channel: 'snapshot', version: '20171003-1.12'
-    mappings channel: 'snapshot', version: '20171003-1.12'
-    // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
-    
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-
-    // Default run configurations.
-    // These can be tweaked, removed, or duplicated as needed.
-    runs {
-        client {
-            workingDirectory project.file('run')
-
-            // Recommended logging data for a userdev environment
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-
-            // Recommended logging level for the console
-            property 'forge.logging.console.level', 'debug'
-        }
-
-        server {
-
-            // Recommended logging data for a userdev environment
-            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
-
-            // Recommended logging level for the console
-            property 'forge.logging.console.level', 'debug'
-        }
+idea {
+    module {
+        // for those who provide sources and javadocs, this is great
+        downloadJavadoc = downloadSources = true
     }
+}
+
+repositories {
+    maven {
+        name = "CurseForge"
+        url = "https://minecraft.curseforge.com/api/maven/"
+    }
+    maven {
+        name 'DVS1 Maven FS'
+        url 'http://dvs1.progwml6.com/files/maven'
+    }
+}
+
+def modid = 'natura_niceties'
+def creator = 'degeneratehuman'
+
+project.setVersion '1.0'
+project.setGroup "com.${creator}.${modid}"
+project.setArchivesBaseName "${modid}"
+
+def minecraft_ver = "${mc_ver}-${forge_ver}"
+
+def placeholderFileGlobs = [
+        '**/*.info',
+        "assets/${modid}/**/*.json"
+]
+
+def placeholders = [
+        'version'   : project.getVersion(),
+        'mc_ver'    : mc_ver,
+        'modid'     : modid
+]
+
+def jvm_ver = '1.8'
+sourceCompatibility = targetCompatibility = jvm_ver
+
+compileJava {
+    sourceCompatibility = targetCompatibility = jvm_ver
 }
 
 dependencies {
-    // Specify the version of Minecraft to use, If this is any group other then 'net.minecraft' it is assumed
-    // that the dep is a ForgeGradle 'patcher' dependency. And it's patches will be applied.
-    // The userdev artifact is a special name and will get all sorts of transformations applied to it.
-    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2854'
+    compile "com.progwml6.natura:natura:${mc_ver}-${natura_ver}"
+    compile "slimeknights.mantle:Mantle:${mc_ver_short}-${mantle_ver}"
 
-    // You may put jars on which you depend on in ./libs or you may define them like so..
-    // compile "some.group:artifact:version:classifier"
-    // compile "some.group:artifact:version"
-
-    // Real examples
-    // compile 'com.mod-buildcraft:buildcraft:6.0.8:dev'  // adds buildcraft to the dev env
-    // compile 'com.googlecode.efficient-java-matrix-library:ejml:0.24' // adds ejml to the dev env
-
-    // The 'provided' configuration is for optional dependencies that exist at compile-time but might not at runtime.
-    // provided 'com.mod-buildcraft:buildcraft:6.0.8:dev'
-
-    // These dependencies get remapped to your current MCP mappings
-    // deobf 'com.mod-buildcraft:buildcraft:6.0.8:dev'
-
-    // For more info...
-    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
-    // http://www.gradle.org/docs/current/userguide/dependency_management.html
-
+    // utility for when manually testing stuff
+    // runtime "mezz.jei:jei_${mc_ver}:${jei_ver}"
 }
 
-// Example for how to get properties into the manifest for reading by the runtime..
+task generateJava(type:Copy) {
+    from 'src/template/java'
+    into "$buildDir/generated/java"
+    expand placeholders
+}
+
+// append the 'generated' folder to the list of source dirs
+sourceSets.main.java.srcDir "$buildDir/generated/java"
+compileJava.dependsOn generateJava
+
+minecraft {
+    setVersion minecraft_ver
+    setMappings mappings_ver
+    runDir = "run"
+    replace '${version}', project.version
+    useDepAts = true
+}
+
+processResources {
+    from(sourceSets.main.resources.srcDirs) {
+        for (glob in placeholderFileGlobs) {
+            include glob
+        }
+        // replace version and MCVersion
+        expand placeholders
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        for (glob in placeholderFileGlobs) {
+            exclude glob
+        }
+    }
+}
+
 jar {
     manifest {
         attributes([
-            "Specification-Title": "examplemod",
-            "Specification-Vendor": "examplemodsareus",
-            "Specification-Version": "1", // We are version 1 of ourselves
-            "Implementation-Title": project.name,
-            "Implementation-Version": "${version}",
-            "Implementation-Vendor" :"examplemodsareus",
-            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+            "Specification-Title"       : modid,
+            "Specification-Vendor"      : creator,
+            "Specification-Version"     : "1",
+            "Implementation-Title"      : project.name,
+            "Implementation-Version"    : project.version,
+            "Implementation-Vendor"     : creator,
+            "Implementation-Timestamp"  : new Date().format("yyyy-MM-dd'T'HH:mm:ssZ") // ISO FORMAT!!! WOOP!!!
         ])
     }
+
+    finalizedBy('reobfJar')
 }
 
-// Example configuration to allow publishing using the maven-publish task
-// This is the preferred method to reobfuscate your jar file
-jar.finalizedBy('reobfJar') 
-// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing
-//publish.dependsOn('reobfJar')
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allJava
+    classifier = 'sources'
+}
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact jar
-        }
-    }
-    repositories {
-        maven {
-            url "file:///${project.projectDir}/mcmodsrepo"
-        }
-    }
+artifacts {
+    archives sourcesJar
 }
